@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidResult(data) {
+      return data.brandName is string && data.brandName.size() <= 200 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.email.matches('^.+@bumail\\.net$') &&
+             data.score is number &&
+             data.userId == request.auth.uid &&
+             data.timestamp == request.time;
+    }
+
+    match /game_results/{resultId} {
+      allow create: if isSignedIn() && isValidResult(incoming());
+      // Admin should be able to read for export
+      // For this prototype, we allow authenticated users to read for the export demo, 
+      // but in production, this would be restricted to isAdmin()
+      allow read: if isSignedIn(); 
+    }
+    
+    match /sessions/{sessionId} {
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow read, write: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

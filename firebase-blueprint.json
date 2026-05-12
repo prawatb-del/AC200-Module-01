@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "PlayerSession": {
+      "title": "Player Session",
+      "description": "Session data for a player in the Business Founder Master game.",
+      "type": "object",
+      "properties": {
+        "brandName": { "type": "string", "description": "Name of the business" },
+        "activity": { "type": "string", "description": "Business activity description" },
+        "businessType": { "type": "string", "description": "Legal structure of the business" },
+        "annualRevenue": { "type": "number", "description": "Estimated yearly income" },
+        "initialCapital": { "type": "number", "description": "Starting capital" },
+        "totalScore": { "type": "number", "description": "Game score" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["brandName", "activity", "businessType", "annualRevenue", "userId"]
+    },
+    "PlayerResult": {
+      "title": "Player Result",
+      "description": "Final result submission for a player.",
+      "type": "object",
+      "properties": {
+        "brandName": { "type": "string" },
+        "email": { "type": "string" },
+        "score": { "type": "number" },
+        "businessType": { "type": "string" },
+        "revenue": { "type": "number" },
+        "capital": { "type": "number" },
+        "activity": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["brandName", "email", "score", "userId"]
+    }
+  },
+  "firestore": {
+    "sessions": {
+      "schema": "PlayerSession",
+      "description": "Collection of player sessions"
+    },
+    "game_results": {
+      "schema": "PlayerResult",
+      "description": "Final scored results with emails"
+    }
+  }
+}
