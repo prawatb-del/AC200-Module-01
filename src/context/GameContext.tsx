@@ -1,44 +1,56 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-export type GameStep = 'HOME' | 'SETUP' | 'QUIZ' | 'RESULT' | 'ADMIN';
+export type GameStep = 'HOME' | 'AUTH' | 'LEVEL_SELECT' | 'GAMEPLAY' | 'RESULT' | 'ADMIN';
 
-export interface PlayerData {
-  brandName: string;
-  activity: string;
-  businessType: string;
-  annualRevenue: number;
-  initialCapital: number;
+export interface ScenarioLog {
+  scenarioId: number;
+  timeTaken: number; // in seconds
+  score: number;
+  attempts: number;
+}
+
+export interface GameState {
+  currentLevel: number;
   totalScore: number;
-  email?: string;
+  completedLevels: number[];
+  playerName: string;
+  playerEmail?: string;
+  isLoggedIn: boolean;
+  scenariosLog: ScenarioLog[];
+  sessionStartTime: number | null;
 }
 
 interface GameContextType {
   currentStep: GameStep;
   setStep: (step: GameStep) => void;
-  playerData: PlayerData;
-  setPlayerData: (data: Partial<PlayerData>) => void;
-  answers: any[];
-  setAnswers: (answers: any[]) => void;
+  gameState: GameState;
+  updateGameState: (data: Partial<GameState>) => void;
+  resetGame: () => void;
 }
 
-const defaultPlayerData: PlayerData = {
-  brandName: '',
-  activity: '',
-  businessType: '',
-  annualRevenue: 0,
-  initialCapital: 0,
+const defaultGameState: GameState = {
+  currentLevel: 1,
   totalScore: 0,
+  completedLevels: [],
+  playerName: '',
+  playerEmail: '',
+  isLoggedIn: false,
+  scenariosLog: [],
+  sessionStartTime: null,
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentStep, setStep] = useState<GameStep>('HOME');
-  const [playerData, setPlayerDataState] = useState<PlayerData>(defaultPlayerData);
-  const [answers, setAnswers] = useState<any[]>([]);
+  const [gameState, setGameState] = useState<GameState>(defaultGameState);
 
-  const setPlayerData = (data: Partial<PlayerData>) => {
-    setPlayerDataState((prev) => ({ ...prev, ...data }));
+  const updateGameState = (data: Partial<GameState>) => {
+    setGameState((prev) => ({ ...prev, ...data }));
+  };
+
+  const resetGame = () => {
+    setGameState(defaultGameState);
   };
 
   return (
@@ -46,10 +58,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         currentStep,
         setStep,
-        playerData,
-        setPlayerData,
-        answers,
-        setAnswers,
+        gameState,
+        updateGameState,
+        resetGame,
       }}
     >
       {children}

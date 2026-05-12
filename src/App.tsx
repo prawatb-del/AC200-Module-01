@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import HomeScreen from './components/HomeScreen';
-import SetupScreen from './components/SetupScreen';
-import QuizScreen from './components/QuizScreen';
+import LevelSelect from './components/LevelSelect';
+import GameplayScreen from './components/GameplayScreen';
+import AuthScreen from './components/AuthScreen';
 import ResultScreen from './components/ResultScreen';
 import AdminScreen from './components/AdminScreen';
 import { auth } from './lib/firebase';
@@ -49,20 +50,19 @@ function MainContent() {
   }, [setStep]);
 
   return (
-    <div className="w-full min-h-screen bg-slate-100 flex justify-center items-start lg:items-center overflow-x-hidden">
-      <div className="w-full max-w-lg bg-white min-h-screen lg:min-h-[850px] lg:my-8 shadow-2xl relative overflow-hidden border-x-[12px] border-thai-blue transition-all duration-300 lg:rounded-2xl flex flex-col">
+    <div className="w-full min-h-screen bg-slate-900 flex justify-center items-start lg:items-center overflow-x-hidden font-sans">
+      <div className="w-full max-w-lg bg-white min-h-screen lg:min-h-[850px] lg:my-8 shadow-2xl relative overflow-hidden transition-all duration-300 lg:rounded-2xl flex flex-col">
+        {/* Status Bar for Auth Errors */}
         {authError && (
-          <div className="bg-slate-900 text-white p-5 text-xs flex items-start gap-4 font-thai z-50 border-b-2 border-thai-gold shadow-xl">
-            <AlertCircle className="w-6 h-6 shrink-0 text-thai-gold animate-bounce mt-1" />
+          <div className="bg-slate-900 text-white p-5 text-xs flex items-start gap-4 z-50 border-b-2 border-green-500 shadow-xl">
+            <AlertCircle className="w-6 h-6 shrink-0 text-green-500 animate-bounce mt-1" />
             <div className="flex-1 space-y-2">
-              <p className="font-bold text-thai-gold uppercase tracking-[0.1em] text-sm">การตั้งค่าไม่สมบูรณ์เพื่อบันทึกผล</p>
-              <div className="space-y-1.5 opacity-90 leading-relaxed font-thai">
-                <p>กรุณาเปิดใช้งาน <b>Anonymous Sign-in</b> ใน Firebase Console:</p>
+              <p className="font-bold text-green-500 uppercase tracking-[0.1em] text-sm">System Connection Issue</p>
+              <div className="space-y-1.5 opacity-90 leading-relaxed">
+                <p>Unable to connect to Cloud Database. Please verify Firebase Anonymous Auth is enabled:</p>
                 <ol className="list-decimal list-inside space-y-1 ml-1 opacity-80">
-                  <li>ไปที่เมนู <span className="text-thai-gold">Build</span> (ไอคอนรูปค้อน 🔨)</li>
-                  <li>เลือกเมนู <span className="text-thai-gold">Authentication</span></li>
-                  <li>คลิกแถบ <span className="text-thai-gold">Sign-in method</span></li>
-                  <li>กดปุ่ม <span className="text-thai-gold">Add new provider</span> และเลือก <span className="text-thai-gold">Anonymous</span></li>
+                  <li>Firebase Console &gt; Authentication &gt; Sign-in method</li>
+                  <li>Enable <b>Anonymous</b> provider</li>
                 </ol>
               </div>
               <div className="pt-3 flex items-center gap-4">
@@ -70,26 +70,45 @@ function MainContent() {
                   href="https://console.firebase.google.com" 
                   target="_blank" 
                   rel="noreferrer"
-                  className="bg-thai-gold text-slate-900 px-4 py-1.5 rounded-full font-bold hover:bg-white transition-all shadow-lg active:scale-95"
+                  className="bg-green-500 text-slate-900 px-4 py-1.5 rounded-full font-bold hover:bg-white transition-all shadow-lg active:scale-95"
                 >
-                  ไปที่ Firebase Console
+                  Configure Firebase
                 </a>
                 <button 
                   onClick={() => setAuthError(null)}
                   className="text-slate-400 hover:text-white transition-colors underline text-[10px]"
                 >
-                  ข้ามไปก่อน (จะไม่บันทึกคะแนน)
+                  Continue Offline
                 </button>
               </div>
             </div>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto">
+        
+        <div className="flex-1 overflow-y-auto bg-slate-900">
           {currentStep === 'HOME' && <HomeScreen />}
-          {currentStep === 'SETUP' && <SetupScreen />}
-          {currentStep === 'QUIZ' && <QuizScreen />}
+          {currentStep === 'AUTH' && <AuthScreen />}
+          {currentStep === 'LEVEL_SELECT' && <LevelSelect />}
+          {currentStep === 'GAMEPLAY' && <GameplayScreen />}
           {currentStep === 'RESULT' && <ResultScreen />}
           {currentStep === 'ADMIN' && <AdminScreen />}
+          
+          {/* Safety Fallback */}
+          {!['HOME', 'AUTH', 'LEVEL_SELECT', 'GAMEPLAY', 'RESULT', 'ADMIN'].includes(currentStep) && (
+            <div className="h-full flex items-center justify-center p-12 text-center">
+              <div>
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h2 className="text-xl font-bold mb-2">Navigation Error</h2>
+                <p className="text-slate-500 text-sm mb-6">The system lost track of the current module phase ({currentStep})</p>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold"
+                >
+                  Reboot System
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

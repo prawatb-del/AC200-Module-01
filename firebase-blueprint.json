@@ -1,47 +1,40 @@
 {
   "entities": {
-    "PlayerSession": {
-      "title": "Player Session",
-      "description": "Session data for a player in the Business Founder Master game.",
+    "ExcelMasterResult": {
+      "title": "Excel Master Result",
+      "description": "User completion data for the Excel Master game",
       "type": "object",
       "properties": {
-        "brandName": { "type": "string", "description": "Name of the business" },
-        "activity": { "type": "string", "description": "Business activity description" },
-        "businessType": { "type": "string", "description": "Legal structure of the business" },
-        "annualRevenue": { "type": "number", "description": "Estimated yearly income" },
-        "initialCapital": { "type": "number", "description": "Starting capital" },
-        "totalScore": { "type": "number", "description": "Game score" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "userId": { "type": "string" }
-      },
-      "required": ["brandName", "activity", "businessType", "annualRevenue", "userId"]
-    },
-    "PlayerResult": {
-      "title": "Player Result",
-      "description": "Final result submission for a player.",
-      "type": "object",
-      "properties": {
-        "brandName": { "type": "string" },
+        "playerName": { "type": "string" },
         "email": { "type": "string" },
         "score": { "type": "number" },
-        "businessType": { "type": "string" },
-        "revenue": { "type": "number" },
-        "capital": { "type": "number" },
-        "activity": { "type": "string" },
+        "completedLevels": { "type": "number" },
         "userId": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["brandName", "email", "score", "userId"]
+      "required": ["email", "score", "userId"]
+    },
+    "AccessCode": {
+      "title": "Access Code",
+      "description": "Verification codes for user login",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "code": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "used": { "type": "boolean" }
+      },
+      "required": ["email", "code"]
     }
   },
   "firestore": {
-    "sessions": {
-      "schema": "PlayerSession",
-      "description": "Collection of player sessions"
+    "/excel_master_results/{resultId}": {
+      "schema": "ExcelMasterResult",
+      "description": "Collection of game results"
     },
-    "game_results": {
-      "schema": "PlayerResult",
-      "description": "Final scored results with emails"
+    "/access_codes/{codeId}": {
+      "schema": "AccessCode",
+      "description": "Collection of generated access codes"
     }
   }
 }
