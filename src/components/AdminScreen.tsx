@@ -2,37 +2,120 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useGame } from '../context/GameContext';
 import { db } from '../lib/firebase';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { ChevronLeft, Download, Database, Users, Calendar, Table as TableIcon, Loader2 } from 'lucide-react';
+import { collection, query, orderBy, limit, getDocs, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { ChevronLeft, Download, Database, Users, Calendar, Table as TableIcon, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { handleFirestoreError, OperationType } from '../lib/firestore-utils';
 
 export default function AdminScreen() {
   const { setStep } = useGame();
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   useEffect(() => {
-    fetchResults();
-  }, []);
+    if (isAuthenticated) {
+      fetchResults();
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === 'BUADMIN2024') {
+      setIsAuthenticated(true);
+      setLoginError(false);
+    } else {
+      setLoginError(true);
+      setPassword('');
+    }
+  };
 
   const fetchResults = async () => {
     setLoading(true);
+    const path = 'game_results';
     try {
-      const q = query(collection(db, 'game_results'), orderBy('timestamp', 'desc'), limit(100));
+      const q = query(collection(db, path), orderBy('timestamp', 'desc'), limit(100));
       const querySnapshot = await getDocs(q);
       const data = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate().toLocaleString() || 'N/A'
+        timestamp: (doc.data() as any).timestamp?.toDate().toLocaleString() || 'N/A'
       }));
       setResults(data);
     } catch (error) {
-      console.error("Fetch error:", error);
+      handleFirestoreError(error, OperationType.GET, path);
     } finally {
       setLoading(false);
     }
   };
+
+  const clearAllSubmissions = async () => {
+    setClearing(true);
+    const path = 'game_results';
+    try {
+      const batch = writeBatch(db);
+      results.forEach((res) => {
+        batch.delete(doc(db, path, res.id));
+      });
+      await batch.commit();
+      setResults([]);
+      setShowConfirmDelete(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, null);
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 font-thai">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl shadow-2xl"
+        >
+          <div className="w-16 h-16 bg-thai-gold rounded-2xl flex items-center justify-center mb-6 mx-auto">
+            <Database className="text-slate-900 w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-thai-gold text-center mb-2 uppercase tracking-widest">Admin Authorization</h2>
+          <p className="text-xs text-slate-400 text-center mb-8 font-thai">เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถเข้าถึงข้อมูลนี้ได้</p>
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <input 
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="รหัสผ่านผู้ดูแลระบบ"
+                className={`w-full bg-black/40 border ${loginError ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-4 text-center text-lg tracking-[0.5em] focus:outline-none focus:border-thai-gold transition-all`}
+                autoFocus
+              />
+              {loginError && <p className="text-red-500 text-[10px] mt-2 text-center font-bold">รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่</p>}
+            </div>
+            <button 
+              type="submit"
+              className="w-full bg-thai-gold hover:bg-thai-gold-dark text-slate-900 font-bold py-4 rounded-xl transition-all active:scale-95 shadow-lg"
+            >
+              เข้าสู่ระบบ
+            </button>
+            <button 
+              type="button"
+              onClick={() => setStep('HOME')}
+              className="w-full text-slate-500 hover:text-white py-2 text-xs transition-colors"
+            >
+              กลับสู่หน้าหลัก
+            </button>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
 
   const exportToExcel = () => {
     setExporting(true);
@@ -64,15 +147,60 @@ export default function AdminScreen() {
           </div>
         </div>
         
-        <button 
-          onClick={exportToExcel}
-          disabled={results.length === 0 || exporting}
-          className="bg-thai-gold hover:bg-thai-gold-dark text-slate-900 px-6 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-50"
-        >
-          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          <span>Excel Export</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowConfirmDelete(true)}
+            disabled={results.length === 0 || clearing}
+            className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-50 border border-red-500/20"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Clear All</span>
+          </button>
+          <button 
+            onClick={exportToExcel}
+            disabled={results.length === 0 || exporting}
+            className="bg-thai-gold hover:bg-thai-gold-dark text-slate-900 px-6 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all disabled:opacity-50"
+          >
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            <span>Excel Export</span>
+          </button>
+        </div>
       </header>
+
+      {/* Confirmation Modal */}
+      {showConfirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-md bg-slate-900 border border-red-500/30 rounded-3xl p-8 text-center"
+          >
+            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">ยืนยันการลบข้อมูลทั้งหมด?</h3>
+            <p className="text-sm text-slate-400 mb-8 font-thai">การกระทำนี้ไม่สามารถย้อนกลับได้ ข้อมูลผลลัพธ์ของผู้เล่นทั้งหมด {results.length} รายการจะถูกลบถาวร</p>
+            
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={clearAllSubmissions}
+                disabled={clearing}
+                className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                {clearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                ลบข้อมูลทั้งหมดเดี๋ยวนี้
+              </button>
+              <button 
+                onClick={() => setShowConfirmDelete(false)}
+                disabled={clearing}
+                className="w-full text-slate-400 hover:text-white py-2 font-bold"
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <main className="p-6">
         <div className="grid grid-cols-2 gap-4 mb-8">
@@ -137,6 +265,63 @@ export default function AdminScreen() {
                 </tbody>
               </table>
             )}
+          </div>
+        </div>
+
+        {/* Integration Guide */}
+        <div className="mt-8 bg-white/5 border border-white/10 rounded-3xl p-8 mb-12">
+          <h3 className="text-thai-gold font-bold mb-4 flex items-center gap-2">
+            <span className="w-8 h-8 rounded-full bg-thai-gold/20 flex items-center justify-center">
+              <Database className="w-4 h-4 text-thai-gold" />
+            </span>
+            Google Sheets & Email Integration Setup
+          </h3>
+          <div className="space-y-4 text-xs font-thai text-slate-300 leading-relaxed">
+            <p>เพื่อให้ระบบส่งอีเมลและบันทึกลง Google Sheet อัตโนมัติ ให้ทำตามขั้นตอนดังนี้:</p>
+            <ol className="list-decimal list-inside space-y-3 bg-white/5 p-4 rounded-xl">
+              <li>ไปที่ <a href="https://script.google.com" target="_blank" className="text-blue-400 underline">script.google.com</a> แล้วสร้าง New Project</li>
+              <li>นำโค้ดด้านล่างไปวางใน <code className="bg-black px-1.5 py-0.5 text-green-400 rounded">Code.gs</code> แทนที่โค้ดเดิม</li>
+              <li>กด Deploy &gt; New Deployment &gt; เลือก Type เป็น 'Web App'</li>
+              <li>เลือก 'Execute as' เป็น **Me** และ 'Who has access' เป็น **Anyone** (สำคัญมาก)</li>
+              <li>คัดลอก Web App URL ไปใส่ในไฟล์ <code className="bg-black px-1.5 py-0.5 text-blue-400 rounded font-sans">ResultScreen.tsx</code> ที่ตัวแปร <code className="bg-black px-1.5 py-0.5 text-thai-gold font-sans">GAS_URL</code></li>
+            </ol>
+            
+            <div className="mt-6 bg-black/50 p-6 rounded-2xl border border-white/5 overflow-x-auto relative group">
+               <div className="absolute top-4 right-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Google Apps Script</div>
+              <pre className="text-[10px] text-green-400 font-mono leading-relaxed">
+{`function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  
+  // 1. บันทึกลง Google Sheet
+  sheet.appendRow([
+    new Date(), 
+    data.email, 
+    data.brandName, 
+    data.score, 
+    data.businessType,
+    data.revenue,
+    data.capital,
+    data.activity
+  ]);
+
+  // 2. ส่งอีเมลสรุปผล
+  var emailBody = "<h3>ขอแสดงความยินดีกับคุณ " + data.brandName + "!</h3>" +
+                  "<p>คุณทำคะแนนได้: <b>" + data.score + " แต้ม</b></p>" +
+                  "<hr/>" +
+                  "<p>ประเภทธุรกิจ: " + data.businessType + "</p>" +
+                  "<p>ทุนจดทะเบียน: " + data.capital.toLocaleString() + " บาท</p>";
+
+  MailApp.sendEmail({
+    to: data.email,
+    subject: "Business Success Report: " + data.brandName,
+    htmlBody: emailBody
+  });
+
+  return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+}`}
+              </pre>
+            </div>
           </div>
         </div>
       </main>

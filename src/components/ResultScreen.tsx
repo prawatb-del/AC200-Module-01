@@ -3,7 +3,8 @@ import { motion } from 'motion/react';
 import { useGame } from '../context/GameContext';
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Trophy, Mail, CheckCircle2, Loader2, Share2, ShieldCheck, Download } from 'lucide-react';
+import { Trophy, Mail, CheckCircle2, Loader2, ShieldCheck, Download, AlertCircle } from 'lucide-react';
+import { handleFirestoreError, OperationType } from '../lib/firestore-utils';
 
 export default function ResultScreen() {
   const { playerData, setPlayerData, setStep } = useGame();
@@ -13,18 +14,25 @@ export default function ResultScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const isValidEmail = (email: string) => {
-    return email.toLowerCase().endsWith('@bumail.net');
+    const lower = email.toLowerCase();
+    return lower.endsWith('@bumail.net') || lower.endsWith('@bu.ac.th');
   };
 
   const handleSubmit = async () => {
     if (!isValidEmail(email)) {
-      setError('กรุณาใช้เมล @bumail.net เท่านั้น');
+      setError('กรุณาใช้เมล @bumail.net หรือ @bu.ac.th เท่านั้น');
+      return;
+    }
+
+    if (!auth.currentUser) {
+      setError('ระบบ Authentication ไม่พร้อมใช้งาน กรุณาตรวจสอบการตั้งค่า Firebase');
       return;
     }
 
     setIsSubmitting(true);
     setError(null);
 
+    const path = 'game_results';
     try {
       const payload = {
         brandName: playerData.brandName,
@@ -34,24 +42,32 @@ export default function ResultScreen() {
         revenue: playerData.annualRevenue,
         capital: playerData.initialCapital,
         activity: playerData.activity,
-        userId: auth.currentUser?.uid || 'anonymous',
+        userId: auth.currentUser.uid,
         timestamp: serverTimestamp(),
       };
 
       // 1. Save to Firestore
-      await addDoc(collection(db, 'game_results'), payload);
+      await addDoc(collection(db, path), payload);
 
-      // 2. Placeholder fetch to GAS Hook
-      // fetch('https://script.google.com/macros/s/PLACEHOLDER_GAS_URL/exec', {
-      //   method: 'POST',
-      //   body: JSON.stringify(payload)
-      // }).catch(err => console.error("GAS Hook failed", err));
+      // 2. Send to Google Sheets & Email via Webhook
+      const GAS_URL = 'https://script.google.com/macros/s/AKfycby-YOUR-ACTUAL-PROD-ID/exec';
+      
+      try {
+        await fetch(GAS_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {
+        console.warn("Webhook failed, but data was saved to Firestore", e);
+      }
 
       setIsSubmitted(true);
       setPlayerData({ email });
     } catch (err: any) {
-      console.error(err);
-      setError('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      handleFirestoreError(err, OperationType.WRITE, path);
+      setError('เกิดข้อผิดพลาดในการบันทึกข้อมูล (Permission Denied)');
     } finally {
       setIsSubmitting(false);
     }

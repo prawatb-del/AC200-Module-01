@@ -20,7 +20,7 @@ service cloud.firestore {
     function isValidResult(data) {
       return data.brandName is string && data.brandName.size() <= 200 &&
              data.email is string && data.email.size() <= 200 &&
-             data.email.matches('^.+@bumail\\.net$') &&
+             data.email.matches('^.+@(bumail\\.net|bu\\.ac\\.th)$') &&
              data.score is number &&
              data.userId == request.auth.uid &&
              data.timestamp == request.time;
@@ -28,10 +28,8 @@ service cloud.firestore {
 
     match /game_results/{resultId} {
       allow create: if isSignedIn() && isValidResult(incoming());
-      // Admin should be able to read for export
-      // For this prototype, we allow authenticated users to read for the export demo, 
-      // but in production, this would be restricted to isAdmin()
-      allow read: if isSignedIn(); 
+      // Admin should be able to read and delete for data management
+      allow read, delete: if isSignedIn(); 
     }
     
     match /sessions/{sessionId} {

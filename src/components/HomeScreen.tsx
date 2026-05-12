@@ -5,6 +5,11 @@ import { Building2, Landmark, Rocket, ShieldCheck } from 'lucide-react';
 
 export default function HomeScreen() {
   const { setStep } = useGame();
+  const [adminClicks, setAdminClicks] = React.useState(0);
+
+  const handleAdminTrigger = () => {
+    setAdminClicks(prev => prev + 1);
+  };
 
   return (
     <div className="min-h-screen flex flex-col pt-12 pb-8 px-6 thai-gradient text-white overflow-hidden relative">
@@ -59,8 +64,21 @@ export default function HomeScreen() {
         </motion.button>
       </motion.div>
 
-      <footer className="mt-auto text-center opacity-40 text-[10px] uppercase tracking-[0.2em] font-thai z-10">
-        Professional Thai Business Simulator
+      <footer className="mt-auto py-8 text-center opacity-60 text-[10px] uppercase tracking-[0.2em] font-thai z-10 flex flex-col items-center gap-4">
+        <p onClick={handleAdminTrigger} className="cursor-default select-none">
+          Professional Thai Business Simulator
+        </p>
+        
+        {adminClicks >= 5 && (
+          <motion.button 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={() => setStep('ADMIN')}
+            className="px-4 py-2 border border-thai-gold/50 rounded-full bg-thai-gold/10 hover:bg-thai-gold/20 transition-all text-thai-gold font-bold"
+          >
+            Admin Access Revealed
+          </motion.button>
+        )}
       </footer>
     </div>
   );
